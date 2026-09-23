@@ -1,0 +1,57 @@
+#!/bin/sh
+
+SERVICE="t113-control"
+CTRL_DEV="$(ls /dev/rpmsg_ctrl-* 2>/dev/null | head -n 1)"
+
+if [ -z "$CTRL_DEV" ]; then
+	echo "ERROR: no /dev/rpmsg_ctrl-* device"
+	echo "Check: dmesg | grep -i -E 'c906|remoteproc|rpmsg|mailbox'"
+	exit 1
+fi
+
+CTRL_NAME="${CTRL_DEV#/dev/rpmsg_ctrl-}"
+CREATE_OUTPUT="$(rpmsg_demo -r "$CTRL_NAME" -c "$SERVICE")" || {
+	echo "$CREATE_OUTPUT"
+	exit 1
+}
+echo "$CREATE_OUTPUT"
+
+EPT_ID="$(echo "$CREATE_OUTPUT" | sed -n 's|.*\/dev\/rpmsg\([0-9][0-9]*\).*|\1|p' | head -n 1)"
+if [ -z "$EPT_ID" ]; then
+	echo "ERROR: could not determine RPMsg endpoint id"
+	exit 1
+fi
+
+EPT_DEV="/dev/rpmsg${EPT_ID}"
+if [ ! -e "$EPT_DEV" ]; then
+	echo "ERROR: endpoint $EPT_DEV was not created"
+	exit 1
+fi
+
+cat "$EPT_DEV" &
+READER_PID=$!
+
+cleanup()
+{
+	kill "$READER_PID" 2>/dev/null
+	wait "$READER_PID" 2>/dev/null
+	rpmsg_demo -r "$CTRL_NAME" -d "$EPT_ID" >/dev/null 2>&1
+}
+trap cleanup EXIT INT TERM
+
+sleep 1
+echo "--- RPMsg connectivity ---"
+echo PING > "$EPT_DEV"
+echo GET > "$EPT_DEV"
+
+echo "--- Set virtual output to 25% and enable ---"
+echo "SET 250" > "$EPT_DEV"
+echo ENABLE > "$EPT_DEV"
+echo GET > "$EPT_DEV"
+
+echo "--- Wait 1 s; the 500 ms watchdog must force output to zero ---"
+sleep 1
+echo GET > "$EPT_DEV"
+sleep 1
+
+echo "Test complete. Expected final status: enabled=0 target=0 output=0"

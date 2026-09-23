@@ -1,0 +1,73 @@
+#!/bin/sh /etc/rc.common
+
+START=18
+STOP=80
+
+log_kmsg()
+{
+	echo "c906-control: $*" > /dev/kmsg 2>/dev/null
+}
+
+find_c906_rproc()
+{
+	for rproc in /sys/class/remoteproc/remoteproc*; do
+		[ -e "$rproc/name" ] || continue
+		name="$(cat "$rproc/name" 2>/dev/null)"
+		case "$name" in
+			*c906*) echo "$rproc"; return 0 ;;
+		esac
+	done
+	return 1
+}
+
+start()
+{
+	tries=0
+	while [ "$tries" -lt 20 ]; do
+		RPROC="$(find_c906_rproc)" && break
+		tries=$((tries + 1))
+		sleep 1
+	done
+
+	if [ -z "$RPROC" ]; then
+		log_kmsg "C906 remoteproc device not found"
+		return 1
+	fi
+
+	state="$(cat "$RPROC/state" 2>/dev/null)"
+	if [ "$state" = "running" ]; then
+		log_kmsg "already running"
+		return 0
+	fi
+
+	if [ ! -s /lib/firmware/amp_rv0.bin ]; then
+		log_kmsg "missing /lib/firmware/amp_rv0.bin"
+		return 1
+	fi
+
+	echo start > "$RPROC/state" || {
+		log_kmsg "failed to start $RPROC (state=$state)"
+		return 1
+	}
+
+	tries=0
+	while [ "$tries" -lt 50 ]; do
+		state="$(cat "$RPROC/state" 2>/dev/null)"
+		if [ "$state" = "running" ]; then
+			log_kmsg "C906 started with amp_rv0.bin"
+			return 0
+		fi
+		tries=$((tries + 1))
+		sleep 1
+	done
+
+	log_kmsg "start timeout (state=$state)"
+	return 1
+}
+
+stop()
+{
+	RPROC="$(find_c906_rproc)" || return 0
+	[ "$(cat "$RPROC/state" 2>/dev/null)" = "running" ] || return 0
+	echo stop > "$RPROC/state"
+}

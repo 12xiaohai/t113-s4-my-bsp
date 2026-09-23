@@ -219,7 +219,16 @@
 		compatible = "allwinner,sun8i-awlink";
 		device_type = "awlink0";
 		id = <0>;
-		status = "disabled";
+		status = "okay";
+	};
+
+	awlink1: awlink@0x1 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "allwinner,sun8i-awlink";
+		device_type = "awlink1";
+		id = <1>;
+		status = "okay";
 	};
 };
 
@@ -1738,12 +1747,12 @@ tvd_row*tvd_column is the total tvd channel number to be used in multichannel mo
  */
 &usbc0 {
 	device_type = "usbc0";
-	usb_port_type = <0x2>;
-	usb_detect_type = <0x1>;
+	usb_port_type = <0x0>;
+	usb_detect_type = <0x0>;
 	usb_detect_mode = <0>;
-	usb_id_gpio = <&pio PE 12 GPIO_ACTIVE_HIGH>;
+        /delete-property/ usb_id_gpio;
+	/delete-property/ usb_det_vbus_gpio;
 	enable-active-high;
-	usb_det_vbus_gpio = <&pio PE 12 GPIO_ACTIVE_HIGH>;
 	usb_wakeup_suspend = <0>;
 	usb_serial_unique = <0>;
 	usb_serial_number = "20080411";
