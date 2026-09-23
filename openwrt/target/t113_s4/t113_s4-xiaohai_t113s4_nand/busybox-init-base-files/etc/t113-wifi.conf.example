@@ -1,0 +1,11 @@
+# Copy this file to /etc/t113-wifi.conf and protect it with chmod 600.
+# MODE=sta enables automatic reconnection; MODE=ap starts a local access point.
+MODE=sta
+COUNTRY=CN
+SSID='replace-with-router-ssid'
+PSK='replace-with-router-password'
+
+AP_SSID='T113-Control'
+AP_PSK='replace-with-at-least-8-characters'
+AP_CHANNEL=6
+AP_ADDR=192.168.12.1

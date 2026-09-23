@@ -35,17 +35,32 @@ void openamp_init_thread(void *param)
 		return;
 	}
 
-	if (control_service_init_rpmsg())
-		printf("control: rpmsg endpoint init failed\n");
-
 #ifdef CONFIG_RPMSG_CLIENT
-        rpmsg_ctrldev_create();
+	/*
+	 * Publish the vendor control endpoint first.  openamp_ept_open() waits
+	 * until Linux binds the endpoint, so publishing t113-control before the
+	 * control device prevents /dev/rpmsg_ctrl-* from ever appearing.
+	 */
+	if (rpmsg_ctrldev_create())
+		printf("control: rpmsg control device init failed\n");
 #endif
 
 #ifdef CONFIG_RPMSG_HEARBEAT
         extern int rpmsg_heart_init(void);
         rpmsg_heart_init();
 #endif
+
+        /* Linux can now use rpmsg_demo to bind the project endpoint. */
+        if (control_service_init_rpmsg())
+                printf("control: rpmsg endpoint init failed\n");
+
+        /*
+         * Do not touch PWM before the RPMsg name service is visible to Linux.
+         * Some PWM clock/pin configurations can wait for hardware and would
+         * otherwise prevent /dev/rpmsg_ctrl-* from ever being created.
+         */
+        if (control_service_start_task())
+                printf("control: realtime task init failed\n");
 
 #ifdef CONFIG_MULTI_CONSOLE
         extern int multiple_console_init(void);
@@ -63,9 +78,6 @@ extern int rpbuf_init(void);
 void cpu0_app_entry(void *param)
 {
 	(void)param;
-
-	if (control_service_start_task())
-		printf("control: realtime task init failed\n");
 
 #ifdef CONFIG_COMPONENTS_AW_DEVFS
 	devfs_mount("/dev");

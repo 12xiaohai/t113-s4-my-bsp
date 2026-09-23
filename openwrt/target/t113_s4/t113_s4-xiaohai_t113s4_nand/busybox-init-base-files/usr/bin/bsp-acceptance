@@ -1,0 +1,185 @@
+#!/bin/sh
+
+REPORT="${BSP_REPORT:-/tmp/bsp-acceptance-$(date +%Y%m%d-%H%M%S).log}"
+IPERF_SERVER="${IPERF_SERVER:-}"
+PING_TARGET="${PING_TARGET:-}"
+WIFI_IF="${WIFI_IF:-wlan0}"
+PASS=0
+FAIL=0
+WARN=0
+
+log()
+{
+	echo "$*" >>"$REPORT"
+}
+
+section()
+{
+	log ""
+	log "==== $* ===="
+}
+
+pass()
+{
+	PASS=$((PASS + 1))
+	log "PASS: $*"
+}
+
+fail()
+{
+	FAIL=$((FAIL + 1))
+	log "FAIL: $*"
+}
+
+warn()
+{
+	WARN=$((WARN + 1))
+	log "WARN: $*"
+}
+
+capture()
+{
+	log "\$ $*"
+	"$@" >>"$REPORT" 2>&1
+}
+
+: >"$REPORT" || exit 2
+log "T113-S4 BSP acceptance report"
+log "timestamp=$(date -Iseconds 2>/dev/null || date)"
+
+section "System and boot"
+capture uname -a
+capture cat /proc/uptime
+capture cat /proc/cmdline
+capture cat /proc/meminfo
+capture df -h
+capture cat /proc/mtd
+capture sh -c "ubinfo -a 2>/dev/null || true"
+if mount | grep -q '/rom type squashfs' && mount | grep -q '/overlay type ubifs'; then
+	pass "SquashFS root and UBIFS overlay are mounted"
+else
+	fail "root filesystem mount layout"
+fi
+if grep -q '"rootfs"' /proc/mtd && grep -q '"rootfs_data"' /proc/mtd; then
+	pass "SPI-NAND MTD rootfs volumes are present"
+else
+	fail "SPI-NAND MTD rootfs volumes"
+fi
+if ps | grep -q '[a]dbd' && ps | grep -q '[d]ropbear'; then
+	pass "ADB and Dropbear services are running"
+else
+	fail "ADB or Dropbear service is missing"
+fi
+if grep -q "Kernel init done" /var/log/messages 2>/dev/null || dmesg | grep -q "Kernel init done"; then
+	pass "kernel reached init"
+else
+	warn "kernel init timestamp not found in retained logs"
+fi
+
+section "C906 and RPMsg"
+RPROC=""
+for item in /sys/class/remoteproc/remoteproc*; do
+	[ -e "$item/name" ] || continue
+	if grep -q c906 "$item/name"; then
+		RPROC="$item"
+		break
+	fi
+done
+if [ -n "$RPROC" ] && [ "$(cat "$RPROC/state")" = "running" ]; then
+	pass "C906 remoteproc is running ($(cat "$RPROC/firmware"))"
+else
+	fail "C906 remoteproc is not running"
+fi
+if command -v t113-control-test >/dev/null 2>&1; then
+	if t113-control-test >>"$REPORT" 2>&1; then
+		pass "RPMsg bidirectional control and watchdog"
+	else
+		fail "RPMsg control test"
+	fi
+else
+	fail "t113-control-test is missing"
+fi
+
+section "PWM ownership"
+log "C906 channels: PWM4/PD5, PWM5/PD6, PWM6/PD7; period=200000ns (5kHz)"
+log "Scope command: t113-control-test scope 30"
+warn "frequency, duty and edge quality require oscilloscope evidence"
+
+section "CAN and serial"
+for canif in awlink0 awlink1; do
+	if ip link show "$canif" >/dev/null 2>&1; then
+		capture ip -details link show "$canif"
+		pass "$canif exists"
+	else
+		warn "$canif not present"
+	fi
+done
+capture sh -c "ls -l /dev/ttyS* 2>/dev/null || true"
+if [ -c /dev/ttyAS2 ] && [ -c /dev/ttyAS4 ]; then
+	pass "UART2 and UART4 device nodes are present"
+else
+	warn "expected UART2/UART4 device node is absent"
+fi
+
+section "USB and Wi-Fi"
+capture sh -c "lsusb 2>/dev/null || cat /sys/kernel/debug/usb/devices 2>/dev/null || true"
+capture sh -c "lsmod 2>/dev/null || true"
+if [ -s /lib/modules/5.4.61/aic8800_bsp.ko ] &&
+   [ -s /lib/modules/5.4.61/aic8800_fdrv.ko ] &&
+   [ -s /lib/firmware/aic8800d80/fmacfw_8800d80_u02.bin ]; then
+	pass "AIC8800D80 modules and firmware are installed"
+else
+	fail "AIC8800D80 modules or firmware are missing"
+fi
+if [ -s /lib/firmware/regulatory.db ]; then
+	pass "cfg80211 regulatory database is installed"
+else
+	warn "cfg80211 regulatory database is missing"
+fi
+if ip link show "$WIFI_IF" >/dev/null 2>&1; then
+	capture ip -details link show "$WIFI_IF"
+	capture sh -c "iw dev '$WIFI_IF' link 2>/dev/null || true"
+	pass "$WIFI_IF exists"
+	if ip -4 addr show "$WIFI_IF" | grep -q "inet "; then
+		pass "$WIFI_IF has IPv4 address"
+	else
+		warn "$WIFI_IF has no IPv4 address"
+	fi
+else
+	warn "$WIFI_IF absent (insert the selected AIC8800D80 USB module)"
+fi
+capture sh -c "ps | grep -E '[w]pa_supplicant|[h]ostapd|[u]dhcpc' || true"
+
+if [ -n "$PING_TARGET" ]; then
+	if ping -c 5 -W 2 "$PING_TARGET" >>"$REPORT" 2>&1; then
+		pass "ping $PING_TARGET"
+	else
+		fail "ping $PING_TARGET"
+	fi
+else
+	warn "PING_TARGET not supplied; latency/loss test skipped"
+fi
+
+if [ -n "$IPERF_SERVER" ] && command -v iperf3 >/dev/null 2>&1; then
+	if iperf3 -c "$IPERF_SERVER" -t 10 >>"$REPORT" 2>&1; then
+		pass "iperf3 TCP uplink to $IPERF_SERVER"
+	else
+		fail "iperf3 TCP uplink to $IPERF_SERVER"
+	fi
+	if iperf3 -c "$IPERF_SERVER" -R -t 10 >>"$REPORT" 2>&1; then
+		pass "iperf3 TCP downlink from $IPERF_SERVER"
+	else
+		fail "iperf3 TCP downlink from $IPERF_SERVER"
+	fi
+else
+	warn "IPERF_SERVER not supplied or iperf3 missing; throughput test skipped"
+fi
+
+section "Kernel diagnostics"
+capture sh -c "dmesg | grep -i -E 'error|fail|warn|timeout|recovery|remoteproc|rpmsg|aic|wlan|usb' | tail -200"
+
+section "Summary"
+log "pass=$PASS fail=$FAIL warn=$WARN"
+log "report=$REPORT"
+cat "$REPORT"
+[ "$FAIL" -eq 0 ]

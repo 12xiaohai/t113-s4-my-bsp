@@ -1,0 +1,144 @@
+#!/bin/sh
+
+CONFIG_FILE="${T113_WIFI_CONFIG:-/etc/t113-wifi.conf}"
+WIFI_IF="${WIFI_IF:-wlan0}"
+PID_FILE=/var/run/t113-wifi.pid
+
+[ -r "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+
+MODE="${MODE:-sta}"
+COUNTRY="${COUNTRY:-CN}"
+AP_ADDR="${AP_ADDR:-192.168.12.1}"
+AP_CHANNEL="${AP_CHANNEL:-6}"
+
+wait_interface()
+{
+	tries=0
+	while [ "$tries" -lt 40 ]; do
+		ip link show "$WIFI_IF" >/dev/null 2>&1 && return 0
+		tries=$((tries + 1))
+		sleep 1
+	done
+	return 1
+}
+
+load_driver()
+{
+	modprobe aic8800_bsp 2>/dev/null || true
+	modprobe aic8800_fdrv 2>/dev/null || true
+	wait_interface
+}
+
+escape_value()
+{
+	printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+stop_wifi()
+{
+	[ -r "$PID_FILE" ] && kill "$(cat "$PID_FILE")" 2>/dev/null
+	rm -f "$PID_FILE"
+	killall wpa_supplicant hostapd udhcpc udhcpd 2>/dev/null
+	ip addr flush dev "$WIFI_IF" 2>/dev/null
+	ip link set "$WIFI_IF" down 2>/dev/null
+}
+
+start_sta_once()
+{
+	[ -n "$SSID" ] && [ -n "$PSK" ] || {
+		echo "SSID and PSK must be set in $CONFIG_FILE" >&2
+		return 1
+	}
+	ssid="$(escape_value "$SSID")"
+	psk="$(escape_value "$PSK")"
+	cat >/tmp/t113-wpa.conf <<EOF
+ctrl_interface=/var/run/wpa_supplicant
+update_config=0
+country=$COUNTRY
+network={
+    ssid="$ssid"
+    psk="$psk"
+    key_mgmt=WPA-PSK
+    scan_ssid=1
+}
+EOF
+	chmod 600 /tmp/t113-wpa.conf
+	ip link set "$WIFI_IF" up
+	wpa_supplicant -B -i "$WIFI_IF" -c /tmp/t113-wpa.conf
+	udhcpc -b -q -i "$WIFI_IF" -p /var/run/udhcpc-${WIFI_IF}.pid
+}
+
+start_ap()
+{
+	[ -n "$AP_SSID" ] && [ -n "$AP_PSK" ] || {
+		echo "AP_SSID and AP_PSK must be set in $CONFIG_FILE" >&2
+		return 1
+	}
+	ssid="$(escape_value "$AP_SSID")"
+	psk="$(escape_value "$AP_PSK")"
+	cat >/tmp/t113-hostapd.conf <<EOF
+interface=$WIFI_IF
+driver=nl80211
+ssid=$ssid
+country_code=$COUNTRY
+hw_mode=g
+channel=$AP_CHANNEL
+wmm_enabled=1
+auth_algs=1
+wpa=2
+wpa_passphrase=$psk
+wpa_key_mgmt=WPA-PSK
+rsn_pairwise=CCMP
+EOF
+	cat >/tmp/t113-udhcpd.conf <<EOF
+start 192.168.12.20
+end 192.168.12.100
+interface $WIFI_IF
+option subnet 255.255.255.0
+option router $AP_ADDR
+option dns $AP_ADDR
+lease_file /tmp/udhcpd.leases
+EOF
+	ip link set "$WIFI_IF" up
+	ip addr flush dev "$WIFI_IF"
+	ip addr add "$AP_ADDR/24" dev "$WIFI_IF"
+	hostapd -B /tmp/t113-hostapd.conf
+	udhcpd /tmp/t113-udhcpd.conf
+}
+
+daemon_sta()
+{
+	echo $$ >"$PID_FILE"
+	while :; do
+		if ! iw dev "$WIFI_IF" link 2>/dev/null | grep -q '^Connected to'; then
+			killall wpa_supplicant udhcpc 2>/dev/null
+			start_sta_once || true
+		fi
+		sleep 10
+	done
+}
+
+case "${1:-status}" in
+	start)
+		load_driver || exit 1
+		stop_wifi
+		if [ "$MODE" = "ap" ]; then start_ap; else start_sta_once; fi
+		;;
+	daemon)
+		load_driver || exit 1
+		stop_wifi
+		if [ "$MODE" = "ap" ]; then start_ap; else daemon_sta; fi
+		;;
+	stop) stop_wifi ;;
+	restart) stop_wifi; exec "$0" daemon ;;
+	sta) MODE=sta; load_driver || exit 1; stop_wifi; start_sta_once ;;
+	ap) MODE=ap; load_driver || exit 1; stop_wifi; start_ap ;;
+	status)
+		if ! ip -details link show "$WIFI_IF" 2>/dev/null; then
+			echo "$WIFI_IF is unavailable; connect the supported USB Wi-Fi module and check dmesg" >&2
+			exit 1
+		fi
+		iw dev "$WIFI_IF" link 2>/dev/null || true
+		;;
+	*) echo "usage: $0 {start|daemon|stop|restart|sta|ap|status}" >&2; exit 2 ;;
+esac

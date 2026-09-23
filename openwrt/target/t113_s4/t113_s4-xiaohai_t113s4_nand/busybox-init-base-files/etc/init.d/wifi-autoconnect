@@ -1,0 +1,15 @@
+#!/bin/sh /etc/rc.common
+
+START=25
+STOP=75
+
+start()
+{
+	[ -r /etc/t113-wifi.conf ] || return 0
+	/usr/bin/t113-wifi daemon >/tmp/t113-wifi.log 2>&1 &
+}
+
+stop()
+{
+	/usr/bin/t113-wifi stop
+}
