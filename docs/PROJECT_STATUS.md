@@ -1,6 +1,6 @@
 # T113-S4 BSP 项目状态与缺口
 
-更新日期：2026-09-23
+更新日期：2026-09-24
 
 ## 结论
 
@@ -19,28 +19,29 @@
 | CAN 控制器与驱动 | 通过（内部回环） | `awlink0` 在 500 kbit/s 下成功收发 `321#1122334455667788` |
 | UART 基础节点 | 通过（节点级） | `/dev/ttyAS2`、`ttyAS3`、`ttyAS4` 存在 |
 | 预留 XR829MQ Wi-Fi | 软件适配完成、硬件待贴装 | SDIO1/rfkill DTS、`xr829.ko`、固件及管理/验收脚本构建通过；当前板卡未焊接 XR829MQ，因此无 SDIO 设备和 `wlan0` 属正常现象 |
-| 自动验收脚本 | 通过 | 当前板端结果 `9 PASS / 0 FAIL / 6 WARN` |
+| 自动验收脚本 | 通过 | 当前板端结果 `11 PASS / 0 FAIL / 4 WARN` |
 | 完整构建与打包 | 通过 | `m` 与 `p` 均成功，生成 24,773,632 B XR829MQ 烧录镜像 |
+| 无用外设 DTS 清理 | 编译通过、待烧录 | GT9xx/TWI2、摄像头输入、I2S1 和 codec 已禁用；最终 DTB 反编译核对为 `disabled` |
 
 最终发布镜像：
 
 ```text
-/home/ubuntu/Desktop/T113-Tina5.0-V1.2/out/t113_s4_linux_xiaohai_t113s4_nand_xr829_release.img
-SHA-256: 6be6ae2455b1af30c73640997d234a7b5b2cda18f39fb6f277cf385c9d7f50aa
+/home/ubuntu/Desktop/T113-Tina5.0-V1.2/out/t113_s4_linux_xiaohai_t113s4_nand_xr829_cleanup_release.img
+SHA-256: fa7d1fe100142bebcc3ca9e3d69af7d648042d102be145b6c91ca9f03801f08c
 ```
 
 最终 C906 固件：
 
 ```text
 size: 253,800 B
-SHA-256: f9304228e8e6a5804c36d8bb021ab35731f630a16d8d1936e61c96b191828f82
+SHA-256: 21c48d82aa9bc8d47d18e5aaafd83674ab11530df3742345afa64de1222b14fb
 ```
 
 ## 尚未完成或缺少证据
 
 ### P0：发布前必须完成
 
-1. 烧写最终 `release.img`，确认冷启动后无需 overlay 热替换即可生成 `/dev/rpmsg_ctrl-c906_rproc@0`。
+1. 烧写最终 `xr829_cleanup_release.img`，确认冷启动后无需 overlay 热替换即可生成 `/dev/rpmsg_ctrl-c906_rproc@0`，并核对已清理的触摸和音频告警消失。
 2. 执行至少 20 次冷启动和 20 次软件重启，并保存成功率、启动时间和异常日志。
 3. 贴装 XR829MQ 及其电源、时钟、天线和外围器件后，验证 SDIO 枚举、模块加载、STA、AP、断线重连、双向 `iperf3` 和长时间稳定性。当前未贴装状态下 `/sys/bus/sdio/devices` 为空、无 `wlan0` 是预期结果。
 
@@ -54,10 +55,9 @@ SHA-256: f9304228e8e6a5804c36d8bb021ab35731f630a16d8d1936e61c96b191828f82
 
 ### P2：BSP 清理项
 
-1. 当前启动日志仍会探测不存在的 GT9xx 触摸屏，并产生 I2C NACK；确认硬件不用触摸后可禁用 `twi2` 下的 `ctp@14`。
-2. 当前 I2S1 和内部 codec 仍启用并出现 PA 引脚警告；确认项目不需要音频后可禁用相应 DTS 节点并继续裁剪 ALSA 包。
-3. 板端 RTC 尚未校时，验收报告时间为 1970；应接入 RTC/NTP 或在测试脚本中记录主机时间。
-4. `/etc/fw_env.config` 尚未配置；只有需要 Linux 读写 U-Boot 环境变量时才必须补齐。
+1. GT9xx/TWI2、摄像头输入、I2S1 和内部 codec 已在 DTS 中禁用并完成构建，尚需烧录后确认启动日志干净；ALSA 用户态包是否继续裁剪取决于后续是否保留音频扩展需求。
+2. 板端 RTC 尚未校时，验收报告时间为 1970；应接入 RTC/NTP 或在测试脚本中记录主机时间。
+3. `/etc/fw_env.config` 尚未配置；只有需要 Linux 读写 U-Boot 环境变量时才必须补齐。
 
 ## 项目边界
 

@@ -869,13 +869,14 @@
 	pinctrl-names = "default", "sleep";
 	dmas = <&dma 45>, <&dma 45>;
 	dma-names = "tx", "rx";
-	status = "okay";
+	/* No touch controller is fitted on the BSP control board. */
+	status = "disabled";
 
     ctp@14 {
                 compatible = "allwinner,goodix";
                 device_type = "ctp";
                 reg = <0x14>;
-                status = "okay";
+                status = "disabled";
                 ctp_name = "gt9xxnew_ts";
                 ctp_twi_id = <0x2>;
                 ctp_twi_addr = <0x14>;
@@ -1187,7 +1188,7 @@
 		vinc0_rear_sensor_sel = <0>;
 		vinc0_front_sensor_sel = <0>;
 		vinc0_sensor_list = <0>;
-		status = "okay";
+		status = "disabled";
 	};
 	vinc1:vinc@5809200 {
 		vinc1_csi_sel = <0>;
@@ -1588,7 +1589,7 @@ tvd_row*tvd_column is the total tvd channel number to be used in multichannel mo
 	/* pinctrl-1	= <&i2s1_pins_b>; */
 	tx-hub-en;
 	rx-sync-en;
-	status		= "okay";
+	status		= "disabled";
 };
 
 &i2s1_mach {
@@ -1599,7 +1600,7 @@ tvd_row*tvd_column is the total tvd channel number to be used in multichannel mo
 	/* soundcard-mach,bitclock-inversion; */
 	soundcard-mach,slot-num		= <2>;
 	soundcard-mach,slot-width	= <32>;
-	status		= "okay";
+	status		= "disabled";
 	i2s1_cpu: soundcard-mach,cpu {
 		sound-dai = <&i2s1_plat>;
 		soundcard-mach,pll-fs	= <1>;
@@ -1682,16 +1683,16 @@ tvd_row*tvd_column is the total tvd channel number to be used in multichannel mo
 /*	pa-pin-0	= <&pio PE 11 GPIO_ACTIVE_HIGH>; */
 	pa-pin-level-0	= <1>;
 	pa-pin-msleep-0	= <0>;
-    status = "okay";
+    status = "disabled";
 };
 
 &codec_plat {
-	status = "okay";
+	status = "disabled";
 };
 
 &codec_mach {
 	soundcard-mach,jack-support = <1>;
-	status = "okay";
+	status = "disabled";
 	soundcard-mach,cpu {
 		sound-dai = <&codec_plat>;
 	};
