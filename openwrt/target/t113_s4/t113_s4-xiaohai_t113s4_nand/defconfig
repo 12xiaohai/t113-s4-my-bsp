@@ -2915,7 +2915,7 @@ CONFIG_PACKAGE_adbd=y
 #
 # end of ath10k Board-Specific Overrides
 
-CONFIG_PACKAGE_aic8800-firmware=y
+# CONFIG_PACKAGE_aic8800-firmware is not set
 # CONFIG_PACKAGE_amd64-microcode is not set
 # CONFIG_PACKAGE_amdgpu-firmware is not set
 CONFIG_PACKAGE_amp-firmware=y
@@ -2926,7 +2926,8 @@ CONFIG_PACKAGE_amp-firmware=y
 # CONFIG_PACKAGE_bnx2-firmware is not set
 # CONFIG_PACKAGE_bnx2x-firmware is not set
 CONFIG_FIRMWARE_PATH="/lib/firmware/"
-CONFIG_AIC8800_USE_USB_SDD=y
+# CONFIG_XR829_USE_40M_SDD is not set
+CONFIG_USES_XR829=y
 # CONFIG_PACKAGE_brcmfmac-firmware-4329-sdio is not set
 # CONFIG_PACKAGE_brcmfmac-firmware-43430-sdio-rpi-3b is not set
 # CONFIG_PACKAGE_brcmfmac-firmware-43430-sdio-rpi-zero-w is not set
@@ -3024,7 +3025,7 @@ CONFIG_PACKAGE_wireless-regdb=y
 # CONFIG_PACKAGE_xr819-firmware is not set
 # CONFIG_PACKAGE_xr819a-firmware is not set
 # CONFIG_PACKAGE_xr819s-firmware is not set
-# CONFIG_PACKAGE_xr829-firmware is not set
+CONFIG_PACKAGE_xr829-firmware=y
 # end of Firmware
 
 #
@@ -3800,13 +3801,13 @@ CONFIG_PACKAGE_kmod-sunxi-g2d=y
 # CONFIG_PACKAGE_kmod-mt76x0u is not set
 # CONFIG_PACKAGE_kmod-mt76x2u is not set
 # CONFIG_PACKAGE_kmod-mwifiex-sdio is not set
-CONFIG_PACKAGE_kmod-net-aic8800=y
+# CONFIG_PACKAGE_kmod-net-aic8800 is not set
 # CONFIG_PACKAGE_kmod-net-broadcom is not set
 # CONFIG_PACKAGE_kmod-net-rtl8192su is not set
 # CONFIG_PACKAGE_kmod-net-rtl8821cs is not set
 # CONFIG_PACKAGE_kmod-net-xr819s is not set
 # CONFIG_PACKAGE_kmod-net-xr819s-40M is not set
-# CONFIG_PACKAGE_kmod-net-xr829 is not set
+CONFIG_PACKAGE_kmod-net-xr829=y
 # CONFIG_PACKAGE_kmod-net-xr829-40M is not set
 # CONFIG_PACKAGE_kmod-p54-common is not set
 # CONFIG_PACKAGE_kmod-p54-usb is not set
@@ -6644,7 +6645,7 @@ CONFIG_PACKAGE_e2fsprogs=y
 # CONFIG_PACKAGE_v821-rftest is not set
 # CONFIG_PACKAGE_xr819-rftest is not set
 # CONFIG_PACKAGE_xr819s-rftest is not set
-# CONFIG_PACKAGE_xr829-rftest is not set
+CONFIG_PACKAGE_xr829-rftest=y
 # end of rf test tool
 
 #

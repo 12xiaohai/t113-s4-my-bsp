@@ -24,8 +24,7 @@ wait_interface()
 
 load_driver()
 {
-	modprobe aic8800_bsp 2>/dev/null || true
-	modprobe aic8800_fdrv 2>/dev/null || true
+	modprobe xr829 2>/dev/null || true
 	wait_interface
 }
 
@@ -135,7 +134,7 @@ case "${1:-status}" in
 	ap) MODE=ap; load_driver || exit 1; stop_wifi; start_ap ;;
 	status)
 		if ! ip -details link show "$WIFI_IF" 2>/dev/null; then
-			echo "$WIFI_IF is unavailable; connect the supported USB Wi-Fi module and check dmesg" >&2
+			echo "$WIFI_IF is unavailable; check XR829 SDIO enumeration, power/reset GPIOs, firmware and dmesg" >&2
 			exit 1
 		fi
 		iw dev "$WIFI_IF" link 2>/dev/null || true

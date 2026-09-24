@@ -15,18 +15,18 @@
 | C906 remoteproc | 通过 | `remoteproc1` 为 `running`，最终打包固件可热启动 |
 | RPMsg 双向通信 | 通过 | `PING/GET/SET/SETALL/ENABLE/STOP` 请求应答通过 |
 | C906 失联保护 | 通过 | 500 ms 无命令后自动关闭并将三路输出归零 |
-| C906 三路 PWM 软件路径 | 通过 | PWM4/5/6 状态可稳定达到 25%/50%/75%，STOP 后归零 |
+| C906 三路 PWM | 通过（实机） | PWM4/5/6 状态稳定，示波器测得 5 kHz、25%/50%/75%，STOP 后归零 |
 | CAN 控制器与驱动 | 通过（内部回环） | `awlink0` 在 500 kbit/s 下成功收发 `321#1122334455667788` |
 | UART 基础节点 | 通过（节点级） | `/dev/ttyAS2`、`ttyAS3`、`ttyAS4` 存在 |
-| AIC8800D80 软件集成 | 通过（构建级） | 两个 5.4.61 ARM 模块、USB 固件、wpad、iw、iperf3 和 regulatory.db 已进入 rootfs |
+| 预留 XR829MQ Wi-Fi | 软件适配完成、硬件待贴装 | SDIO1/rfkill DTS、`xr829.ko`、固件及管理/验收脚本构建通过；当前板卡未焊接 XR829MQ，因此无 SDIO 设备和 `wlan0` 属正常现象 |
 | 自动验收脚本 | 通过 | 当前板端结果 `9 PASS / 0 FAIL / 6 WARN` |
-| 完整构建与打包 | 通过 | `m` 与 `p` 均成功，生成 23,725,056 B 烧录镜像 |
+| 完整构建与打包 | 通过 | `m` 与 `p` 均成功，生成 24,773,632 B XR829MQ 烧录镜像 |
 
 最终发布镜像：
 
 ```text
-/home/ubuntu/Desktop/T113-Tina5.0-V1.2/out/t113_s4_linux_xiaohai_t113s4_nand_amp_pwm_wifi_release.img
-SHA-256: 23e0a983ee37dca301897ea5f0f990d626f9efdd6a3dd1a1e80f1c5be37b3da6
+/home/ubuntu/Desktop/T113-Tina5.0-V1.2/out/t113_s4_linux_xiaohai_t113s4_nand_xr829_release.img
+SHA-256: 6be6ae2455b1af30c73640997d234a7b5b2cda18f39fb6f277cf385c9d7f50aa
 ```
 
 最终 C906 固件：
@@ -42,8 +42,7 @@ SHA-256: f9304228e8e6a5804c36d8bb021ab35731f630a16d8d1936e61c96b191828f82
 
 1. 烧写最终 `release.img`，确认冷启动后无需 overlay 热替换即可生成 `/dev/rpmsg_ctrl-c906_rproc@0`。
 2. 执行至少 20 次冷启动和 20 次软件重启，并保存成功率、启动时间和异常日志。
-3. 使用示波器测量 PD5、PD6、PD7，确认 5 kHz、25%/50%/75% 占空比、电平幅值和 STOP/看门狗归零。
-4. 插入实际 AIC8800D80 USB 模块，验证模块加载、STA、AP、断线重连、双向 `iperf3` 和长时间稳定性。
+3. 贴装 XR829MQ 及其电源、时钟、天线和外围器件后，验证 SDIO 枚举、模块加载、STA、AP、断线重连、双向 `iperf3` 和长时间稳定性。当前未贴装状态下 `/sys/bus/sdio/devices` 为空、无 `wlan0` 是预期结果。
 
 ### P1：双调姿平台系统仍需完成
 
@@ -62,6 +61,6 @@ SHA-256: f9304228e8e6a5804c36d8bb021ab35731f630a16d8d1936e61c96b191828f82
 
 ## 项目边界
 
-如果项目名称定位为“T113 Linux BSP 开发”，当前代码已经覆盖启动链、存储、内核/设备树、根文件系统、C906 AMP、PWM、CAN、UART 节点、USB Wi-Fi 软件栈和验收工具，剩余重点是硬件证据与清理优化。
+如果项目名称定位为“T113 Linux BSP 开发”，当前代码已经覆盖启动链、存储、内核/设备树、根文件系统、C906 AMP、PWM、CAN、UART 节点和验收工具；板载 XR829MQ 的驱动/固件选型已经完成，剩余重点是控制引脚核对、设备树落地、镜像重构及无线实测。
 
 如果项目名称定位为“双 Stewart 调姿平台自动对接系统”，则控制算法、传感器闭环、双板无线通信和真实机构联调仍属于主体工作，不能只凭 BSP 验收结果宣称整机完成。

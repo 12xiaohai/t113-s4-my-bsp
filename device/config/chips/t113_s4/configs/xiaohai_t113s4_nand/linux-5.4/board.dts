@@ -833,11 +833,12 @@
 	/*sd-uhs-ddr50;*/
 	/*sd-uhs-sdr104;*/
 	/*sunxi-power-save-mode;*/
-	/*sunxi-dis-signal-vol-sw;*/
+	/* XR829MQ VDDIO is fixed at 3.3 V; do not attempt SD voltage switching. */
+	sunxi-dis-signal-vol-sw;
 	cap-sdio-irq;
 	keep-power-in-suspend;
 	ignore-pm-notify;
-	max-frequency = <150000000>;
+	max-frequency = <50000000>;
 	ctl-spec-caps = <0x8>;
 	status = "okay";
 };
@@ -1058,7 +1059,8 @@
 		power_en;
 		pinctrl-0 = <&wlan_pins_a>;
 		pinctrl-names = "default";
-		status        = "disabled";
+		/* Enable the on-board XR829MQ Wi-Fi power/reset sequence. */
+		status        = "okay";
 
 		wlan: wlan@0 {
 			compatible    = "allwinner,sunxi-wlan";

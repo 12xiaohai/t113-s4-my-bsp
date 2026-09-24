@@ -121,15 +121,16 @@ else
 	warn "expected UART2/UART4 device node is absent"
 fi
 
-section "USB and Wi-Fi"
-capture sh -c "lsusb 2>/dev/null || cat /sys/kernel/debug/usb/devices 2>/dev/null || true"
+section "SDIO Wi-Fi"
+capture sh -c "cat /sys/kernel/debug/mmc1/ios 2>/dev/null || true"
+capture sh -c "find /sys/bus/sdio/devices -maxdepth 1 -type l -print 2>/dev/null || true"
 capture sh -c "lsmod 2>/dev/null || true"
-if [ -s /lib/modules/5.4.61/aic8800_bsp.ko ] &&
-   [ -s /lib/modules/5.4.61/aic8800_fdrv.ko ] &&
-   [ -s /lib/firmware/aic8800d80/fmacfw_8800d80_u02.bin ]; then
-	pass "AIC8800D80 modules and firmware are installed"
+if find /lib/modules -type f -name xr829.ko 2>/dev/null | grep -q . &&
+   [ -s /lib/firmware/fw_xr829.bin ] &&
+   [ -s /lib/firmware/sdd_xr829.bin ]; then
+	pass "XR829 module and firmware are installed"
 else
-	fail "AIC8800D80 modules or firmware are missing"
+	fail "XR829 module or firmware is missing"
 fi
 if [ -s /lib/firmware/regulatory.db ]; then
 	pass "cfg80211 regulatory database is installed"
@@ -146,7 +147,7 @@ if ip link show "$WIFI_IF" >/dev/null 2>&1; then
 		warn "$WIFI_IF has no IPv4 address"
 	fi
 else
-	warn "$WIFI_IF absent (insert the selected AIC8800D80 USB module)"
+	warn "$WIFI_IF absent (check XR829 SDIO enumeration, WL_REG_ON, clock and firmware)"
 fi
 capture sh -c "ps | grep -E '[w]pa_supplicant|[h]ostapd|[u]dhcpc' || true"
 
